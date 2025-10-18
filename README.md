@@ -28,6 +28,9 @@ source .venv\bin\activate
 .venv\Scripts\activate
 ```
 
+Perspective API docs 설명에 따라 API 설정 및 API 키 발급 -
+[Perspective API Docs](https://developers.perspectiveapi.com/s/docs-get-started?language=en_US)
+
 디렉토리 내부에 `.env` 파일 생성 후 Google API key 환경변수 입력
 
 ## 1. main.py 수정 및 실행
