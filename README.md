@@ -32,7 +32,7 @@ source .venv\bin\activate
 
 ## 1. main.py 수정 및 실행
 
-main.py 파일 안의 아래 내용 설정
+main.py 파일 안의 아래 내용을 원하는 text로 수정
 ```python
 analyze_request = {
   'comment': { 'text': 'friendly greetings from python' },
