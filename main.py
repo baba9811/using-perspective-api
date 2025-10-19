@@ -12,7 +12,7 @@ API_KEY = os.getenv("GOOGLE_API_KEY")
 
 # User-defined parameters
 FILE_PATH = "data/sample.csv"  # CSV 파일 경로를 지정하세요
-COL_NAME = "changed_query"  # 분석할 컬럼 이름을 지정하세요
+COL_NAME = "text"  # 분석할 컬럼 이름을 지정하세요
 LANGUAGE = "ko"  # 분석 언어 (en, ko, es, fr, de, it, pt, ru, ja, zh 등)
 
 # Performance settings
