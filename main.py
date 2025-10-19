@@ -2,8 +2,6 @@ from googleapiclient import discovery
 from dotenv import load_dotenv
 import os
 import pandas as pd
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import List, Dict
 from tqdm import tqdm
@@ -66,11 +64,10 @@ class PerspectiveAPIAnalyzer:
             discoveryServiceUrl="https://commentanalyzer.googleapis.com/$discovery/rest?version=v1alpha1",
             static_discovery=False,
         )
-        self.executor = ThreadPoolExecutor(max_workers=10)
 
-    def analyze_text_sync(self, text: str, max_retries: int = 3) -> Dict[str, float]:
+    def analyze_text(self, text: str, max_retries: int = 3) -> Dict[str, float]:
         """
-        단일 텍스트를 동기적으로 분석 (재시도 로직 포함)
+        단일 텍스트를 분석 (재시도 로직 포함)
 
         Args:
             text: 분석할 텍스트
@@ -104,53 +101,14 @@ class PerspectiveAPIAnalyzer:
                 error_msg = str(e)
                 if attempt < max_retries - 1:
                     # Exponential backoff
-                    wait_time = (2 ** attempt) * 1.0
-                    print(f"  Retry {attempt + 1}/{max_retries} after {wait_time}s due to: {error_msg[:80]}")
+                    wait_time = (2 ** attempt) * 2.0
+                    print(f"\n  Retry {attempt + 1}/{max_retries} after {wait_time}s: {error_msg[:80]}")
                     time.sleep(wait_time)
                 else:
-                    print(f"  Failed after {max_retries} attempts: {error_msg[:100]}")
+                    print(f"\n  Failed after {max_retries} attempts: {error_msg[:100]}")
                     return {f"psp_{metric.lower()}": None for metric in self.metrics}
 
         return {f"psp_{metric.lower()}": None for metric in self.metrics}
-
-    async def analyze_text_async(self, text: str) -> Dict[str, float]:
-        """
-        단일 텍스트를 비동기적으로 분석 (ThreadPoolExecutor 사용)
-
-        Args:
-            text: 분석할 텍스트
-
-        Returns:
-            각 metric의 점수를 담은 딕셔너리
-        """
-        loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(self.executor, self.analyze_text_sync, text)
-        return result
-
-    async def analyze_batch_async(self, texts: List[str], batch_size: int = 3) -> List[Dict[str, float]]:
-        """
-        여러 텍스트를 비동기적으로 배치 분석
-
-        Args:
-            texts: 분석할 텍스트 리스트
-            batch_size: 동시에 처리할 요청 수
-
-        Returns:
-            각 텍스트의 점수를 담은 딕셔너리 리스트
-        """
-        results = []
-        for i in range(0, len(texts), batch_size):
-            batch = texts[i:i+batch_size]
-            tasks = [self.analyze_text_async(text) for text in batch]
-            batch_results = await asyncio.gather(*tasks)
-            results.extend(batch_results)
-            # 배치 간 대기 시간 추가
-            await asyncio.sleep(1.5)
-        return results
-
-    def cleanup(self):
-        """리소스 정리"""
-        self.executor.shutdown(wait=True)
 
 
 def get_result_path(input_path: str) -> str:
@@ -235,17 +193,17 @@ def save_progress(df: pd.DataFrame, result_path: str):
     df.to_csv(result_path, index=False)
 
 
-async def process_texts(
+def process_texts(
     analyzer: PerspectiveAPIAnalyzer,
     df_result: pd.DataFrame,
     texts: List[str],
     start_idx: int,
     result_path: str,
-    batch_size: int = 5,
-    save_interval: int = 10
+    save_interval: int = 20,
+    delay_between_requests: float = 1.2
 ):
     """
-    텍스트들을 처리하고 주기적으로 저장
+    텍스트들을 순차적으로 처리하고 주기적으로 저장
 
     Args:
         analyzer: PerspectiveAPIAnalyzer 인스턴스
@@ -253,39 +211,43 @@ async def process_texts(
         texts: 분석할 텍스트 리스트
         start_idx: 시작 인덱스
         result_path: 결과 저장 경로
-        batch_size: 배치 크기
         save_interval: 저장 주기
+        delay_between_requests: 요청 간 대기 시간 (초)
     """
     total = len(texts)
 
     print(f"\nProcessing {total} texts from index {start_idx}...")
+    print(f"Saving progress every {save_interval} items")
+    print(f"Rate: ~{60.0/delay_between_requests:.0f} requests/minute\n")
 
-    with tqdm(total=total, initial=0, desc="Analyzing") as pbar:
-        for i in range(0, total, batch_size):
-            batch_texts = texts[i:i+batch_size]
-            batch_indices = list(range(start_idx + i, start_idx + i + len(batch_texts)))
+    with tqdm(total=total, initial=0, desc="Analyzing", ncols=100) as pbar:
+        for i, text in enumerate(texts):
+            current_idx = start_idx + i
 
-            # 배치 분석
-            results = await analyzer.analyze_batch_async(batch_texts, batch_size=batch_size)
+            # 텍스트 분석
+            result = analyzer.analyze_text(text)
 
             # 결과 저장
-            for idx, result in zip(batch_indices, results):
-                for col, value in result.items():
-                    df_result.at[idx, col] = value
+            for col, value in result.items():
+                df_result.at[current_idx, col] = value
 
-            pbar.update(len(batch_texts))
+            pbar.update(1)
 
             # 주기적으로 파일에 저장
-            if (i + batch_size) % (save_interval * batch_size) == 0:
+            if (i + 1) % save_interval == 0:
                 save_progress(df_result, result_path)
-                print(f"\nProgress saved at index {start_idx + i + len(batch_texts)}")
+                tqdm.write(f"Progress saved at index {current_idx + 1}")
+
+            # Rate limit 준수를 위한 대기
+            if i < total - 1:  # 마지막 요청 후에는 대기하지 않음
+                time.sleep(delay_between_requests)
 
     # 최종 저장
     save_progress(df_result, result_path)
     print(f"\nAll results saved to {result_path}")
 
 
-async def main():
+def main():
     """메인 실행 함수"""
     print("=" * 50)
     print("Perspective API Text Analyzer")
@@ -320,14 +282,14 @@ async def main():
 
     try:
         # 텍스트 처리
-        await process_texts(
+        process_texts(
             analyzer=analyzer,
             df_result=df_result,
             texts=texts_to_analyze,
             start_idx=start_idx,
             result_path=result_path,
-            batch_size=3,  # 동시 처리할 요청 수 (SSL 에러 방지)
-            save_interval=5  # 5 * batch_size마다 저장 (15개마다)
+            save_interval=20,  # 20개마다 저장
+            delay_between_requests=1.2  # 요청 간 1.2초 대기 (분당 50개)
         )
 
         print("\n" + "=" * 50)
@@ -348,9 +310,7 @@ async def main():
         print(f"\n\nError occurred: {str(e)}")
         save_progress(df_result, result_path)
         raise
-    finally:
-        analyzer.cleanup()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
