@@ -4,7 +4,10 @@
 ## 0. uv python package manager 설치 및 환경설정
 
 ```bash
+git clone https://github.com/baba9811/using-perspective-api.git
+```
 
+```bash
 # macOS and Linux
 curl -LsSf https://astral.sh/uv/install.sh | sh
 # or
