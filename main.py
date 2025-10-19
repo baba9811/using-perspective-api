@@ -7,13 +7,13 @@ from typing import List, Dict
 from tqdm import tqdm
 import time
 
-# Configuration
 load_dotenv()
 API_KEY = os.getenv("GOOGLE_API_KEY")
 
 # User-defined parameters
 FILE_PATH = "data/sample.csv"  # CSV 파일 경로를 지정하세요
 COL_NAME = "changed_query"  # 분석할 컬럼 이름을 지정하세요
+LANGUAGE = "ko"  # 분석 언어 (en, ko, es, fr, de, it, pt, ru, ja, zh 등)
 
 # Perspective API에서 측정 가능한 모든 metrics
 AVAILABLE_METRICS = [
@@ -35,7 +35,7 @@ AVAILABLE_METRICS = [
     "UNSUBSTANTIAL"
 ]
 
-# 측정할 metrics 선택 (원하는 것만 리스트에 포함)
+# 측정할 metrics 선택
 METRICS_TO_MEASURE = [
     "TOXICITY",
     "SEVERE_TOXICITY",
@@ -49,14 +49,16 @@ METRICS_TO_MEASURE = [
 class PerspectiveAPIAnalyzer:
     """Perspective API를 사용하여 텍스트를 분석하는 클래스"""
 
-    def __init__(self, api_key: str, metrics: List[str]):
+    def __init__(self, api_key: str, metrics: List[str], language: str = "en"):
         """
         Args:
             api_key: Google API Key
             metrics: 측정할 metric 리스트
+            language: 분석 언어 코드
         """
         self.api_key = api_key
         self.metrics = metrics
+        self.language = language
         self.client = discovery.build(
             "commentanalyzer",
             "v1alpha1",
@@ -84,7 +86,7 @@ class PerspectiveAPIAnalyzer:
                 analyze_request = {
                     'comment': {'text': str(text)[:20480]},  # API 제한: 최대 20480 characters
                     'requestedAttributes': {metric: {} for metric in self.metrics},
-                    'languages': ['en']  # 필요시 수정
+                    'languages': [self.language]
                 }
 
                 response = self.client.comments().analyze(body=analyze_request).execute()
@@ -199,8 +201,8 @@ def process_texts(
     texts: List[str],
     start_idx: int,
     result_path: str,
-    save_interval: int = 20,
-    delay_between_requests: float = 1.2
+    save_interval: int = 10,
+    delay_between_requests: float = 0.5
 ):
     """
     텍스트들을 순차적으로 처리하고 주기적으로 저장
@@ -255,6 +257,7 @@ def main():
     print(f"\nConfiguration:")
     print(f"  Input file: {FILE_PATH}")
     print(f"  Column name: {COL_NAME}")
+    print(f"  Language: {LANGUAGE}")
     print(f"  Metrics to measure: {METRICS_TO_MEASURE}")
     print(f"  API Key: {'***' + API_KEY[-4:] if API_KEY else 'NOT SET'}")
     print()
@@ -278,7 +281,7 @@ def main():
         return
 
     # Analyzer 생성
-    analyzer = PerspectiveAPIAnalyzer(API_KEY, METRICS_TO_MEASURE)
+    analyzer = PerspectiveAPIAnalyzer(API_KEY, METRICS_TO_MEASURE, LANGUAGE)
 
     try:
         # 텍스트 처리
@@ -288,8 +291,8 @@ def main():
             texts=texts_to_analyze,
             start_idx=start_idx,
             result_path=result_path,
-            save_interval=20,  # 20개마다 저장
-            delay_between_requests=1.2  # 요청 간 1.2초 대기 (분당 50개)
+            save_interval=10,  # 10개마다 저장
+            delay_between_requests=0.5  # 요청 간 0.5초 대기 (분당 120개)
         )
 
         print("\n" + "=" * 50)
