@@ -106,7 +106,7 @@ Perspective API Text Analyzer
 
 Configuration:
   Input file: data/sample.csv
-  Column name: changed_query
+  Column name: name
   Language: ko
   Metrics to measure: ['TOXICITY', 'SEVERE_TOXICITY', 'IDENTITY_ATTACK', 'INSULT', 'PROFANITY', 'THREAT']
   Save interval: every 10 items
@@ -219,7 +219,7 @@ Perspective API에서 측정 가능한 16가지 속성:
 원본 CSV의 모든 컬럼 + 새로운 컬럼들:
 
 ```csv
-changed_query,psp_toxicity,psp_severe_toxicity,psp_identity_attack,psp_insult,psp_profanity,psp_threat
+text,psp_toxicity,psp_severe_toxicity,psp_identity_attack,psp_insult,psp_profanity,psp_threat
 "Hello world",0.025,0.001,0.002,0.003,0.001,0.001
 "Bad text",0.856,0.234,0.123,0.567,0.789,0.345
 ...
