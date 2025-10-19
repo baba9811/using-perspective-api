@@ -1,4 +1,4 @@
-# Google Perplexity API 사용
+# Google Perspective API 사용
 
 
 ## 0. uv python package manager 설치 및 환경설정
