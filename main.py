@@ -15,6 +15,10 @@ FILE_PATH = "data/sample.csv"  # CSV 파일 경로를 지정하세요
 COL_NAME = "changed_query"  # 분석할 컬럼 이름을 지정하세요
 LANGUAGE = "ko"  # 분석 언어 (en, ko, es, fr, de, it, pt, ru, ja, zh 등)
 
+# Performance settings
+SAVE_INTERVAL = 10  # N개 처리마다 결과 저장
+DELAY_BETWEEN_REQUESTS = 0.5  # 요청 간 대기 시간(초) - rate limit 조절
+
 # Perspective API에서 측정 가능한 모든 metrics
 AVAILABLE_METRICS = [
     "TOXICITY",
@@ -259,6 +263,8 @@ def main():
     print(f"  Column name: {COL_NAME}")
     print(f"  Language: {LANGUAGE}")
     print(f"  Metrics to measure: {METRICS_TO_MEASURE}")
+    print(f"  Save interval: every {SAVE_INTERVAL} items")
+    print(f"  Request delay: {DELAY_BETWEEN_REQUESTS}s (~{60.0/DELAY_BETWEEN_REQUESTS:.0f} req/min)")
     print(f"  API Key: {'***' + API_KEY[-4:] if API_KEY else 'NOT SET'}")
     print()
 
@@ -291,8 +297,8 @@ def main():
             texts=texts_to_analyze,
             start_idx=start_idx,
             result_path=result_path,
-            save_interval=10,  # 10개마다 저장
-            delay_between_requests=0.5  # 요청 간 0.5초 대기 (분당 120개)
+            save_interval=SAVE_INTERVAL,
+            delay_between_requests=DELAY_BETWEEN_REQUESTS
         )
 
         print("\n" + "=" * 50)
