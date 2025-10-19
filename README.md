@@ -70,7 +70,7 @@ GOOGLE_API_KEY=your_api_key_here
 ```python
 # User-defined parameters
 FILE_PATH = "data/sample.csv"      # 분석할 CSV 파일 경로
-COL_NAME = "changed_query"         # 분석할 컬럼 이름
+COL_NAME = "text"         # 분석할 컬럼 이름
 LANGUAGE = "ko"                    # 분석 언어 (en, ko, es, fr, de, it, pt, ru, ja, zh 등)
 
 # Performance settings
