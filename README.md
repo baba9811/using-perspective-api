@@ -3,9 +3,13 @@
 
 ## 0. uv python package manager 설치 및 환경설정
 
+git 저장소 clone
+
 ```bash
 git clone https://github.com/baba9811/using-perspective-api.git
 ```
+
+uv 설치
 
 ```bash
 # macOS and Linux
